@@ -9,32 +9,25 @@ public class Main {
     public static void main(String[] args) {
 
         String filePath = "book.txt";
-        File file = getFile(filePath); // refactor 1 : 파일 가져오는 코드 method 처리
+        Map<String, Integer> wordMap = null;
+        try {
+            File file = getFileSystemResource(filePath); // refactor 1 : 파일 가져오는 코드 method 처리
 
-        if(!file.exists()) { // refactor 1-1 : 파일 유효성 체크
-            System.out.println("파일을 찾을 수 없습니다.");
-            return;
-        }
+            wordMap = new HashMap<>();
 
-        Map<String, Integer> wordMap = new HashMap<>();
-
-        try (
-            InputStream fileInputStream = new FileInputStream(file);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(fileInputStream))
-        ) {
-            wordMap.putAll(getWordCount(reader));
+            wordMap.putAll(getMapDistinctWordCount(file)); //refactor 2 : text file의 단어 갯수를 map으로 가져오는 method 추출
         } catch (IOException e){
             e.printStackTrace();
         }
 
         System.out.println(wordMap);
 
-        List<Map.Entry<String, Integer>> list = getSortedList(wordMap); //refactor 3 : sort 처리
+        List<Map.Entry<String, Integer>> sortedlist = getSortedListFromMap(wordMap); //refactor 3 : sort 처리
 
-        System.out.println(list);
+        System.out.println(sortedlist);
     }
 
-    private static List<Map.Entry<String, Integer>> getSortedList(Map<String, Integer> wordMap) {
+    private static List<Map.Entry<String, Integer>> getSortedListFromMap(Map<String, Integer> wordMap) {
         List<Map.Entry<String, Integer>> list = new ArrayList<>(wordMap.entrySet());
         list.sort(new Comparator<Map.Entry<String, Integer>>() {
             @Override
@@ -47,13 +40,25 @@ public class Main {
         return list;
     }
 
-    private static Map<String, Integer> getWordCount(BufferedReader reader) throws IOException {
+    private static Map<String, Integer> getMapDistinctWordCount(File file) throws IOException {
+        return getMapDistinctWordCount(new FileInputStream(file));
+    }
+
+    private static Map<String, Integer> getMapDistinctWordCount(InputStream inputStream) throws IOException {
+        return getMapDistinctWordCount(new InputStreamReader(inputStream));
+    }
+
+    private static Map<String, Integer> getMapDistinctWordCount(InputStreamReader reader) throws IOException {
+        return getMapDistinctWordCount(new BufferedReader(reader));
+    }
+
+    private static Map<String, Integer> getMapDistinctWordCount(BufferedReader reader) throws IOException {
         Map<String, Integer> wordMap = new HashMap<>();
         String line;
 
         while ((line = reader.readLine()) != null) { //refactor 2-1 반복 구문 보완
 
-            line = getLineStr(line);
+            line = line.replaceAll("[^a-zA-Z0-9]", " ").toLowerCase(Locale.ROOT).trim();
             if (line.length() > 0) {
 
                 String[] words = line.split("\\s+");
@@ -67,19 +72,18 @@ public class Main {
         return wordMap;
     }
 
-    private static String getLineStr(String line) {
-        line = line.replaceAll("[^a-zA-Z0-9]", " ").toLowerCase(Locale.ROOT).trim();
-        return line;
-    }
-
-    private static File getFile(String filePath) {
+    private static File getFileSystemResource(String filePath) throws FileNotFoundException {
         URL url = ClassLoader.getSystemResource(filePath);
-        System.out.println("resource : " + url);
+        System.out.println("url : " + url);
         File file = null;
 
         if(url != null) {
             file = new File(url.getFile());
+        } else {
+            System.out.println("파일을 찾을 수 없습니다 : " + filePath);
+            throw new FileNotFoundException();
         }
+
         return file;
     }
 }
