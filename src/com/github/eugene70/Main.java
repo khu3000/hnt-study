@@ -1,8 +1,11 @@
 package com.github.eugene70;
 
 import java.io.*;
+import java.lang.reflect.Array;
 import java.net.URL;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class Main {
 
@@ -30,26 +33,43 @@ public class Main {
 
     private static Map<String, Integer> countWord(List<String> lines) {
         final Map<String, Integer> wordMap = new HashMap<>();
-        for (String line : lines) {
-            String[] words = line.split("\\s+");
-            for (String word : words) {
-                int countWord = wordMap.getOrDefault(word, 0);
-                wordMap.put(word, countWord + 1);
-            }
-        }
+//        for (String line : lines) {
+//            String[] words = line.split("\\s+");
+//            for (String word : words) {
+//                int countWord = wordMap.getOrDefault(word, 0);
+//                wordMap.put(word, countWord + 1);
+//            }
+//        }
+
+        lines.stream().map((line) -> line.split("\\s+"))
+                .map(a -> Arrays.asList(a))
+                .flatMap(Collection::stream)
+                .forEach(word -> {
+                    int countWord = wordMap.getOrDefault(word, 0);
+                    wordMap.put(word, countWord + 1);
+                });
+
         return wordMap;
     }
 
     private static List<Map.Entry<String, Integer>> sortByWordCount(Map<String, Integer> wordMap) {
         List<Map.Entry<String, Integer>> sortedList = new ArrayList<>(wordMap.entrySet());
-        sortedList.sort(new Comparator<Map.Entry<String, Integer>>() {
-            @Override
-            public int compare(Map.Entry o1, Map.Entry o2) {
-                int v1 = (int)o1.getValue();
-                int v2 = (int)o2.getValue();
-                return Integer.compare(v2, v1);
-            }
-        });
+
+//        sortedList.sort(new Comparator<Map.Entry<String, Integer>>() {
+//            @Override
+//            public int compare(Map.Entry o1, Map.Entry o2) {
+//                int v1 = (int)o1.getValue();
+//                int v2 = (int)o2.getValue();
+//                return Integer.compare(v2, v1);
+//            }
+//        });
+
+        sortedList = sortedList.stream().sorted((o1, o2) -> {
+            int v1 = (int)o1.getValue();
+            int v2 = (int)o2.getValue();
+            return Integer.compare(v2, v1);
+        }).collect(Collectors.toList());
+
         return sortedList;
     }
 
