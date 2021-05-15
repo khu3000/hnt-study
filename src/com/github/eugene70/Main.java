@@ -1,83 +1,55 @@
 package com.github.eugene70;
 
-import java.io.*;
-import java.lang.reflect.Array;
-import java.net.URL;
-import java.util.*;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.util.AbstractMap.SimpleEntry;
+
 public class Main {
 
-    private static List<String> readBook(String bookName) {
-        final URL url = ClassLoader.getSystemResource(bookName);
-        System.out.println(url);
-        final File file = new File(url.getFile());
-        final List<String> lines = new ArrayList<>();
-        try (
-                final InputStream fileInputStream = new FileInputStream(file);
-                final BufferedReader reader = new BufferedReader(new InputStreamReader(fileInputStream))
-        ) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                line = line.replaceAll("[^a-zA-Z0-9]", " ").toLowerCase(Locale.ROOT).trim();
-                if (line.trim().length() > 0) {
-                    lines.add(line);
-                }
-            }
-        } catch (IOException e) {
+    private static Stream<String> readBook(String bookName) {
+        try {
+            final URI uri = ClassLoader.getSystemResource(bookName).toURI();
+            return Files.lines(Paths.get(uri));
+        } catch (IOException | URISyntaxException e) {
             e.printStackTrace();
+            return Stream.empty();
         }
-        return lines;
     }
 
-    private static Map<String, Integer> countWord(List<String> lines) {
-        final Map<String, Integer> wordMap = new HashMap<>();
-//        for (String line : lines) {
-//            String[] words = line.split("\\s+");
-//            for (String word : words) {
-//                int countWord = wordMap.getOrDefault(word, 0);
-//                wordMap.put(word, countWord + 1);
-//            }
-//        }
-
-        lines.stream().map((line) -> line.split("\\s+"))
-                .map(a -> Arrays.asList(a))
-                .flatMap(Collection::stream)
-                .forEach(word -> {
-                    int countWord = wordMap.getOrDefault(word, 0);
-                    wordMap.put(word, countWord + 1);
-                });
-
-        return wordMap;
-    }
-
-    private static List<Map.Entry<String, Integer>> sortByWordCount(Map<String, Integer> wordMap) {
-        List<Map.Entry<String, Integer>> sortedList = new ArrayList<>(wordMap.entrySet());
-
-//        sortedList.sort(new Comparator<Map.Entry<String, Integer>>() {
-//            @Override
-//            public int compare(Map.Entry o1, Map.Entry o2) {
-//                int v1 = (int)o1.getValue();
-//                int v2 = (int)o2.getValue();
-//                return Integer.compare(v2, v1);
-//            }
-//        });
-
-        sortedList = sortedList.stream().sorted((o1, o2) -> {
-            int v1 = (int)o1.getValue();
-            int v2 = (int)o2.getValue();
-            return Integer.compare(v2, v1);
-        }).collect(Collectors.toList());
-
-        return sortedList;
+    private static String[] splitBySpace(String line) {
+        return line.split("\\s+");
     }
 
     public static void main(String[] args) {
-        System.out.println(
-            sortByWordCount(
-                    countWord(
-                            readBook("book.txt")))
-        );
+        long start = System.currentTimeMillis();
+        List<Map.Entry<String, Integer>> result = readBook("book.txt")
+                .parallel()
+                .map(Refiner::cleansing)
+                .filter(s -> !s.isEmpty())
+                .flatMap(line -> Arrays.stream(splitBySpace(line)))
+                .collect(Collectors.groupingBy(word -> word))
+                .entrySet()
+                .stream()
+                .map(e -> (Map.Entry<String, Integer>) new SimpleEntry(e.getKey(), e.getValue().size()))
+                .sorted(Map.Entry.comparingByValue(Collections.reverseOrder()))
+                .collect(Collectors.toList());
+        long end = System.currentTimeMillis();
+        System.out.println(result);
+        System.out.println((end - start) + "ms");
+    }
+
+    public static <T> T log(T param) {
+        System.out.println(Thread.currentThread().getName() + ": " + param.toString());
+        return param;
     }
 }
